@@ -31234,6 +31234,10 @@ function requireGithub () {
 
 var githubExports = requireGithub();
 
+/**
+ * Pushes a log entry to Loki with a configurable timeout.
+ * @throws {Error} If required inputs are missing, fetch fails, or times out.
+ */
 async function pushToLoki() {
     const startTime = coreExports.getInput('start-time', { required: true });
     const workflowName = coreExports.getInput('workflow-name', { required: true });
@@ -31241,6 +31245,8 @@ async function pushToLoki() {
     const lokiPushUrl = coreExports.getInput('loki-push-url', { required: true });
     const promPushToken = coreExports.getInput('prom-push-token', { required: true });
     const appName = coreExports.getInput('app-name', { required: true });
+    // Optional timeout input (ms)
+    const lokiTimeout = coreExports.getInput('loki-timeout', { required: true });
     // Convert bash logic to TypeScript
     const metricTimestamp = Math.floor(Date.now() / 1000);
     const duration = metricTimestamp - Number(startTime);
@@ -31275,17 +31281,37 @@ async function pushToLoki() {
             }
         ]
     };
-    // Send log entry to Loki using fetch (Basic auth)
-    const response = await fetch(lokiPushUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Basic ${promPushToken}`
-        },
-        body: JSON.stringify(lokiPayload)
-    });
+    // Send log entry to Loki using fetch (Basic auth) with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), Number(lokiTimeout) || 10000);
+    let response;
+    try {
+        response = await fetch(lokiPushUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${promPushToken}`
+            },
+            body: JSON.stringify(lokiPayload),
+            signal: controller.signal
+        });
+    }
+    catch (err) {
+        if (err &&
+            typeof err === 'object' &&
+            'name' in err &&
+            err.name === 'AbortError') {
+            coreExports.error(`Loki push request timed out after ${lokiTimeout}ms`);
+            throw new Error(`Loki push request timed out after ${lokiTimeout}ms`);
+        }
+        coreExports.error(`Failed to push to Loki: ${err instanceof Error ? err.message : 'Network failure'}`);
+        throw err;
+    }
+    finally {
+        clearTimeout(timeoutId);
+    }
     if (!response.ok) {
-        throw Error(`Failed to push to Loki: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to push to Loki: ${response.status} ${response.statusText}`);
     }
 }
 

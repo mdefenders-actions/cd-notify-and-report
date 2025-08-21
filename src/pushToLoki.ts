@@ -58,7 +58,10 @@ export async function pushToLoki(): Promise<void> {
 
   // Send log entry to Loki using fetch (Basic auth) with timeout
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), lokiTimeout)
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    Number(lokiTimeout) || 10000
+  )
   let response
   try {
     response = await fetch(lokiPushUrl, {
