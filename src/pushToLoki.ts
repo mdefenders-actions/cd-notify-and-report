@@ -24,7 +24,7 @@ export async function pushToLoki(): Promise<void> {
   const logEntryObj = {
     run_id: githubRunId,
     name: workflowName,
-    duration: `${duration}s`,
+    duration: `${duration}`,
     status: undefined as 'success' | 'failure' | undefined
   }
 

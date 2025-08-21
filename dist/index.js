@@ -31256,7 +31256,7 @@ async function pushToLoki() {
     const logEntryObj = {
         run_id: githubRunId,
         name: workflowName,
-        duration: `${duration}s`,
+        duration: `${duration}`,
         status: undefined
     };
     // Add run status logic
