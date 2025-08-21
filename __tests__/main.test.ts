@@ -7,11 +7,11 @@
  */
 import { jest } from '@jest/globals'
 import * as core from '../__fixtures__/core.js'
-import { wait } from '../__fixtures__/wait.js'
+import { pushToLoki } from '../__fixtures__/pushToLoki.js'
 
 // Mocks should be declared before the module being tested is imported.
 jest.unstable_mockModule('@actions/core', () => core)
-jest.unstable_mockModule('../src/wait.js', () => ({ wait }))
+jest.unstable_mockModule('../src/pushToLoki.js', () => ({ pushToLoki }))
 
 // The module being tested should be imported dynamically. This ensures that the
 // mocks are used in place of any actual dependencies.
@@ -19,44 +19,60 @@ const { run } = await import('../src/main.js')
 
 describe('main.ts', () => {
   beforeEach(() => {
-    // Set the action's inputs as return values from core.getInput().
-    core.getInput.mockImplementation(() => '500')
-
-    // Mock the wait function so that it does not actually wait.
-    wait.mockImplementation(() => Promise.resolve('done!'))
+    jest.clearAllMocks()
+    core.getInput.mockImplementation((name: string) => {
+      if (name === 'milliseconds') return '1000'
+      return 'test-value'
+    })
   })
 
-  afterEach(() => {
-    jest.resetAllMocks()
-  })
-
-  it('Sets the time output', async () => {
+  it('calls pushToLoki during run', async () => {
     await run()
+    expect(pushToLoki).toHaveBeenCalled()
+  })
 
-    // Verify the time output was set.
-    expect(core.setOutput).toHaveBeenNthCalledWith(
-      1,
+  it('sets the time output after run', async () => {
+    await run()
+    expect(core.setOutput).toHaveBeenCalledWith(
       'time',
-      // Simple regex to match a time string in the format HH:MM:SS.
-      expect.stringMatching(/^\d{2}:\d{2}:\d{2}/)
+      expect.stringMatching(/\d{2}:\d{2}:\d{2}/)
     )
   })
 
-  it('Sets a failed status', async () => {
-    // Clear the getInput mock and return an invalid value.
-    core.getInput.mockClear().mockReturnValueOnce('this is not a number')
-
-    // Clear the wait mock and return a rejected promise.
-    wait
-      .mockClear()
-      .mockRejectedValueOnce(new Error('milliseconds is not a number'))
-
+  it('sets the report output after run', async () => {
     await run()
+    expect(core.setOutput).toHaveBeenCalledWith('report', '')
+  })
 
-    // Verify that the action was marked as failed.
-    expect(core.setFailed).toHaveBeenNthCalledWith(
-      1,
-      'milliseconds is not a number'
+  it('logs debug messages for waiting and timestamps', async () => {
+    await run()
+    expect(core.debug).toHaveBeenCalledWith('Waiting 1000 milliseconds ...')
+    expect(core.debug).toHaveBeenCalledWith(
+      expect.stringMatching(/\d{2}:\d{2}:\d{2}/)
     )
+  })
+
+  it('handles errors from pushToLoki and sets failed status', async () => {
+    pushToLoki.mockImplementationOnce(() =>
+      Promise.reject(new Error('Loki error'))
+    )
+    await run()
+    expect(core.error).toHaveBeenCalledWith(
+      'Action failed with error: Loki error'
+    )
+    expect(core.setFailed).toHaveBeenCalledWith('Loki error')
+    expect(core.setOutput).toHaveBeenCalledWith('report', '')
+  })
+
+  it('handles unknown errors and sets failed status', async () => {
+    pushToLoki.mockImplementationOnce(() => {
+      throw 'unknown'
+    })
+    await run()
+    expect(core.error).toHaveBeenCalledWith(
+      'Action failed with an unknown error'
+    )
+    expect(core.setFailed).toHaveBeenCalledWith('Unknown error occurred')
+    expect(core.setOutput).toHaveBeenCalledWith('report', '')
   })
 })
