@@ -99,4 +99,18 @@ describe('pushToLoki', () => {
     fetch.mockResolvedValue(new Response(null, { status: 200 }))
     await expect(pushToLoki()).rejects.toThrow()
   })
+
+  it('should log and throw on fetch timeout (AbortError)', async () => {
+    const abortError = { name: 'AbortError', message: 'Request timed out' }
+    fetch.mockImplementation(() => { throw abortError })
+    await expect(pushToLoki()).rejects.toThrow('Loki push request timed out after 10000ms')
+    expect(core.error).toHaveBeenCalledWith('Loki push request timed out after 10000ms')
+  })
+
+  it('should log and throw on generic fetch error', async () => {
+    const genericError = new Error('Network failure')
+    fetch.mockImplementation(() => { throw genericError })
+    await expect(pushToLoki()).rejects.toThrow('Network failure')
+    expect(core.error).toHaveBeenCalledWith('Failed to push to Loki: Network failure')
+  })
 })
