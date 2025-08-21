@@ -1,19 +1,17 @@
 import { jest } from '@jest/globals'
 import * as core from '../__fixtures__/core.js'
 import * as github from '../__fixtures__/github.js'
-import { fetch } from '../__fixtures__/fetch.js'
+import { HttpClient, createHttpResponse } from '../__fixtures__/http-client.js'
 
 jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('@actions/github', () => github)
-jest.unstable_mockModule('node-fetch', () => fetch)
+jest.unstable_mockModule('@actions/http-client', () => ({ HttpClient }))
 
 const { pushToLoki } = await import('../src/pushToLoki.js')
 
-/**
- * Integration tests for src/pushToLoki.ts
- */
 describe('pushToLoki', () => {
   const OLD_ENV = process.env
+  let mockPost: jest.Mock
 
   beforeEach(() => {
     jest.resetModules()
@@ -32,6 +30,12 @@ describe('pushToLoki', () => {
     })
     github.context.runId = 12345
     github.context.repo = { owner: 'octocat', repo: 'hello-world' }
+
+    // fresh client each test
+    mockPost = jest.fn()
+    ;(HttpClient as jest.Mock).mockImplementation(() => ({
+      post: mockPost
+    }))
   })
 
   afterEach(() => {
@@ -40,14 +44,16 @@ describe('pushToLoki', () => {
   })
 
   it('should push log entry to Loki successfully', async () => {
-    fetch.mockResolvedValue(new Response(null, { status: 200 }))
+    // @ts-expect-error mocking post method
+    mockPost.mockResolvedValue(createHttpResponse(200, ''))
     await expect(pushToLoki()).resolves.toBeUndefined()
-    expect(fetch).toHaveBeenCalled()
+    expect(mockPost).toHaveBeenCalled()
   })
 
   it('should throw if Loki returns error', async () => {
-    fetch.mockResolvedValue(
-      new Response(null, { status: 500, statusText: 'Internal Server Error' })
+    mockPost.mockResolvedValue(
+      // @ts-expect-error mocking post method
+      createHttpResponse(500, '', 'Internal Server Error')
     )
     await expect(pushToLoki()).rejects.toThrow(
       'Failed to push to Loki: 500 Internal Server Error'
@@ -66,12 +72,13 @@ describe('pushToLoki', () => {
       }
       return inputs[name] || ''
     })
-    fetch.mockResolvedValue(new Response(null, { status: 200 }))
+    // @ts-expect-error mocking post method
+    mockPost.mockResolvedValue(createHttpResponse(200, ''))
+
     await pushToLoki()
-    const body = fetch.mock.calls[0][1]?.body
-    if (typeof body !== 'string')
-      throw new Error('Loki request body is not a string')
-    const payload = JSON.parse(body)
+
+    const body = mockPost.mock.calls[0][1] // 2nd arg is body
+    const payload = JSON.parse(body as string)
     expect(payload.streams[0].stream.status).toBe('failure')
   })
 
@@ -79,8 +86,9 @@ describe('pushToLoki', () => {
     core.getInput.mockImplementation(
       (name: string, options?: { required?: boolean }) => {
         if (name === 'start-time') {
-          if (options?.required)
+          if (options?.required) {
             throw new Error(`Input required and not supplied: ${name}`)
+          }
           return ''
         }
         const inputs: Record<string, string> = {
@@ -97,38 +105,14 @@ describe('pushToLoki', () => {
         return value
       }
     )
-    fetch.mockResolvedValue(new Response(null, { status: 200 }))
+    // @ts-expect-error mocking post method
+    mockPost.mockResolvedValue(createHttpResponse(200, ''))
     await expect(pushToLoki()).rejects.toThrow()
   })
 
-  it('should log and throw on fetch timeout (AbortError)', async () => {
-    const abortError = { name: 'AbortError', message: 'Request timed out' }
-    fetch.mockImplementation(() => {
-      throw abortError
-    })
-    await expect(pushToLoki()).rejects.toThrow(
-      'Loki push request timed out after 10000ms'
-    )
-    expect(core.error).toHaveBeenCalledWith(
-      'Loki push request timed out after 10000ms'
-    )
-  })
-
-  it('should log and throw on generic fetch error', async () => {
-    const genericError = new Error('Network failure')
-    fetch.mockImplementation(() => {
-      throw genericError
-    })
-    await expect(pushToLoki()).rejects.toThrow('Network failure')
-    expect(core.error).toHaveBeenCalledWith(
-      'Failed to push to Loki: Network failure'
-    )
-  })
-
   it('should throw if Loki returns 404 Not Found', async () => {
-    fetch.mockResolvedValue(
-      new Response(null, { status: 404, statusText: 'Not Found' })
-    )
+    // @ts-expect-error mocking post method
+    mockPost.mockResolvedValue(createHttpResponse(404, '', 'Not Found'))
     await expect(pushToLoki()).rejects.toThrow(
       'Failed to push to Loki: 404 Not Found'
     )

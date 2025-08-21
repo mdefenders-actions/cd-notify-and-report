@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import * as http from '@actions/http-client'
 
 /**
  * Pushes a log entry to Loki with a configurable timeout.
@@ -12,8 +13,6 @@ export async function pushToLoki(): Promise<void> {
   const lokiPushUrl = core.getInput('loki-push-url', { required: true })
   const promPushToken = core.getInput('prom-push-token', { required: true })
   const appName = core.getInput('app-name', { required: true })
-  // Optional timeout input (ms)
-  const lokiTimeout = core.getInput('loki-timeout', { required: true })
 
   // Convert bash logic to TypeScript
   const metricTimestamp = Math.floor(Date.now() / 1000)
@@ -56,43 +55,19 @@ export async function pushToLoki(): Promise<void> {
     ]
   }
 
-  // Send log entry to Loki using fetch (Basic auth) with timeout
-  const controller = new AbortController()
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    Number(lokiTimeout) || 10000
-  )
-  let response
-  try {
-    response = await fetch(lokiPushUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${promPushToken}`
-      },
-      body: JSON.stringify(lokiPayload),
-      signal: controller.signal
-    })
-  } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === 'object' &&
-      'name' in err &&
-      (err as { name: string }).name === 'AbortError'
-    ) {
-      core.error(`Loki push request timed out after ${lokiTimeout}ms`)
-      throw new Error(`Loki push request timed out after ${lokiTimeout}ms`)
-    }
-    core.error(
-      `Failed to push to Loki: ${err instanceof Error ? err.message : 'Network failure'}`
-    )
-    throw err
-  } finally {
-    clearTimeout(timeoutId)
-  }
-  if (!response.ok) {
+  const httpClient = new http.HttpClient()
+
+  // Send log entry to Loki using @actions/http-client (Basic auth)
+  const res = await httpClient.post(lokiPushUrl, JSON.stringify(lokiPayload), {
+    'Content-Type': 'application/json',
+    Authorization: `Basic ${promPushToken}`
+  })
+
+  const body = await res.readBody()
+
+  if (res.message.statusCode && res.message.statusCode >= 400) {
     throw new Error(
-      `Failed to push to Loki: ${response.status} ${response.statusText}`
+      `Failed to push to Loki: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`
     )
   }
 }

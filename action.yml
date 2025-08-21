@@ -43,10 +43,6 @@ inputs:
     description: 'Name of the application/service to report to Loki'
     required: true
     default: 'default-app'
-  loki-timeout:
-    description: 'Timeout for Loki push requests in seconds'
-    required: false
-    default: '15'
 runs:
   using: node20
   main: dist/index.js
