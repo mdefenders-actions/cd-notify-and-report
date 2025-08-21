@@ -13,8 +13,7 @@ export async function pushToLoki(): Promise<void> {
   const promPushToken = core.getInput('prom-push-token', { required: true })
   const appName = core.getInput('app-name', { required: true })
   // Optional timeout input (ms)
-  const lokiTimeoutInput = core.getInput('loki-timeout', { required: false })
-  const lokiTimeout = lokiTimeoutInput ? Number(lokiTimeoutInput) : 10000
+  const lokiTimeout = core.getInput('loki-timeout', { required: true })
 
   // Convert bash logic to TypeScript
   const metricTimestamp = Math.floor(Date.now() / 1000)
@@ -82,7 +81,7 @@ export async function pushToLoki(): Promise<void> {
       throw new Error(`Loki push request timed out after ${lokiTimeout}ms`)
     }
     core.error(
-      `Failed to push to Loki: ${err instanceof Error ? err.message : String(err)}`
+      `Failed to push to Loki: ${err instanceof Error ? err.message : 'Network failure'}`
     )
     throw err
   } finally {

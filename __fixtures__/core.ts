@@ -25,7 +25,8 @@ export const getInput = jest.fn(
       'workflow-success': '1',
       'loki-push-url': 'https://loki.example.com',
       'prom-push-token': 'token',
-      'app-name': 'TestApp'
+      'app-name': 'TestApp',
+      'loki-timeout': '10000' // Default timeout
     }
     const value = inputs[name] || ''
     if (options?.required && !value) {
