@@ -113,4 +113,13 @@ describe('pushToLoki', () => {
     await expect(pushToLoki()).rejects.toThrow('Network failure')
     expect(core.error).toHaveBeenCalledWith('Failed to push to Loki: Network failure')
   })
+
+  it('should throw if Loki returns 404 Not Found', async () => {
+    fetch.mockResolvedValue(
+      new Response(null, { status: 404, statusText: 'Not Found' })
+    )
+    await expect(pushToLoki()).rejects.toThrow(
+      'Failed to push to Loki: 404 Not Found'
+    )
+  })
 })
