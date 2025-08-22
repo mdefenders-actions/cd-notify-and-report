@@ -43,6 +43,10 @@ inputs:
     description: 'Name of the application/service to report to Loki'
     required: true
     default: 'default-app'
+  dry-run:
+    description: 'Indicates if this is a dry run (true/false)'
+    required: false
+    default: 'false'
 runs:
   using: node20
   main: dist/index.js

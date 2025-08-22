@@ -31247,6 +31247,7 @@ async function pushToLoki() {
     const lokiPushUrl = coreExports.getInput('loki-push-url', { required: true });
     const promPushToken = coreExports.getInput('prom-push-token', { required: true });
     const appName = coreExports.getInput('app-name', { required: true });
+    const dryRun = coreExports.getBooleanInput('dry-run');
     // Convert bash logic to TypeScript
     const metricTimestamp = Math.floor(Date.now() / 1000);
     const duration = metricTimestamp - Number(startTime);
@@ -31282,6 +31283,10 @@ async function pushToLoki() {
         ]
     };
     const httpClient = new libExports.HttpClient();
+    if (dryRun) {
+        coreExports.info('Dry run enabled, not sending to Loki');
+        return;
+    }
     // Send log entry to Loki using @actions/http-client (Basic auth)
     const res = await httpClient.post(lokiPushUrl, JSON.stringify(lokiPayload), {
         'Content-Type': 'application/json',

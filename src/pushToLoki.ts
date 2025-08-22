@@ -13,6 +13,7 @@ export async function pushToLoki(): Promise<void> {
   const lokiPushUrl = core.getInput('loki-push-url', { required: true })
   const promPushToken = core.getInput('prom-push-token', { required: true })
   const appName = core.getInput('app-name', { required: true })
+  const dryRun = core.getBooleanInput('dry-run')
 
   // Convert bash logic to TypeScript
   const metricTimestamp = Math.floor(Date.now() / 1000)
@@ -56,6 +57,10 @@ export async function pushToLoki(): Promise<void> {
   }
 
   const httpClient = new http.HttpClient()
+  if (dryRun) {
+    core.info('Dry run enabled, not sending to Loki')
+    return
+  }
 
   // Send log entry to Loki using @actions/http-client (Basic auth)
   const res = await httpClient.post(lokiPushUrl, JSON.stringify(lokiPayload), {

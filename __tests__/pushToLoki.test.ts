@@ -16,6 +16,7 @@ describe('pushToLoki', () => {
   beforeEach(() => {
     jest.resetModules()
     process.env = { ...OLD_ENV }
+    core.getBooleanInput.mockReturnValue(false)
     core.getInput.mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
         'start-time': '1000',
@@ -116,5 +117,12 @@ describe('pushToLoki', () => {
     await expect(pushToLoki()).rejects.toThrow(
       'Failed to push to Loki: 404 Not Found'
     )
+  })
+  it('should handle dry-run', async () => {
+    core.getBooleanInput.mockReturnValue(true)
+    const infoSpy = jest.spyOn(core, 'info')
+    await expect(pushToLoki()).resolves.toBeUndefined()
+    expect(infoSpy).toHaveBeenCalledWith('Dry run enabled, not sending to Loki')
+    expect(mockPost).not.toHaveBeenCalled()
   })
 })
