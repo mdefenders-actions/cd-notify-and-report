@@ -44,7 +44,7 @@ jobs:
 
       - name: Lint Codebase
         id: super-linter
-        uses: super-linter/super-linter@f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4b5a6f1e2
+        uses: super-linter/super-linter/slim@c7d6e5f4g3h2i1j0k9l8m7n6o5p4q3r2s1t0u9v8
         env:
           DEFAULT_BRANCH: main
           FILTER_REGEX_EXCLUDE: dist/**/*
