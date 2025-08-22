@@ -97,6 +97,9 @@ Thumbs.db
 # Ignore built ts files
 __tests__/runner/*
 
-# IDE files
+# Misc files
 .idea
 *.code-workspace
+.env
+samples
+step_summary

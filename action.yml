@@ -9,16 +9,44 @@ branding:
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  start-time:
+    description: 'Start time of the workflow in seconds since epoch'
     required: true
-    default: '1000'
-
-# Define your outputs here.
-outputs:
-  time:
-    description: Your output description here
-
+    default: '0'
+  workflow-name:
+    description: 'Name of the workflow'
+    required: true
+  workflow-success:
+    description:
+      'Indicates if the workflow was successful (1 for success, 0 for failure)'
+    required: true
+    default: '0'
+  loki-push-url:
+    description: 'URL for the Prometheus push gateway'
+    required: true
+  prom-push-token:
+    description: 'Token for the Prometheus push gateway'
+    required: true
+  cicd-slack-webhook:
+    description: 'Slack webhook URL for CI/CD notifications'
+    required: true
+  service-url:
+    description: 'URL of the service to be monitored'
+    required: true
+  image-name:
+    description: 'Name of the Docker image'
+    required: true
+  image-tag:
+    description: 'Tag of the Docker image'
+    required: true
+  app-name:
+    description: 'Name of the application/service to report to Loki'
+    required: true
+    default: 'default-app'
+  dry-run:
+    description: 'Indicates if this is a dry run (true/false)'
+    required: false
+    default: 'false'
 runs:
-  using: node24
+  using: node20
   main: dist/index.js
