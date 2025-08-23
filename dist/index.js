@@ -31249,7 +31249,7 @@ async function pushToLoki() {
     const appName = coreExports.getInput('app-name', { required: true });
     const dryRun = coreExports.getBooleanInput('dry-run');
     // Convert bash logic to TypeScript
-    const metricTimestamp = Math.floor(Date.now() / 1000);
+    const metricTimestamp = Date.now();
     const duration = metricTimestamp - Number(startTime);
     const githubRunId = githubExports.context.runId;
     const githubRepo = `${githubExports.context.repo.owner}/${githubExports.context.repo.repo}`;

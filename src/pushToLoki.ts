@@ -16,7 +16,7 @@ export async function pushToLoki(): Promise<void> {
   const dryRun = core.getBooleanInput('dry-run')
 
   // Convert bash logic to TypeScript
-  const metricTimestamp = Math.floor(Date.now() / 1000)
+  const metricTimestamp = Date.now()
   const duration = metricTimestamp - Number(startTime)
 
   const githubRunId = github.context.runId
