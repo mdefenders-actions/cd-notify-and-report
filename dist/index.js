@@ -31301,6 +31301,7 @@ async function sendToSlack() {
         workflowName: coreExports.getInput('workflow-name', { required: true }),
         workflowSuccess: coreExports.getInput('workflow-success', { required: true }),
         appName: coreExports.getInput('app-name', { required: true }),
+        dryRun: coreExports.getBooleanInput('dry-run'),
         githubUrl: coreExports.getInput('github-url', { required: true }),
         serviceURL: coreExports.getInput('service-url', { required: true }),
         imageName: coreExports.getInput('image-name', { required: true }),
@@ -31317,6 +31318,10 @@ async function sendToSlack() {
         `Service URL: ${inputs.serviceURL}`,
         `Image: ${inputs.imageName}:${inputs.imageTag}`
     ].join('\n');
+    if (inputs.dryRun) {
+        coreExports.info('Dry run enabled, not sending to Slack');
+        return;
+    }
     const httpClient = new libExports.HttpClient();
     const res = await httpClient.post(inputs.slackWebHook, JSON.stringify({ text: message }), { 'Content-Type': 'application/json' });
     const body = await res.readBody();
