@@ -1,28 +1,17 @@
 import * as core from '@actions/core'
 import { pushToLoki } from './pushToLoki.js'
+import { sendToSlack } from './sendToSlack.js'
 
 /**
- * The main function for the action.
- *
- * @returns Resolves when the action is complete.
+ * Executes the main action logic.
  */
 export async function run(): Promise<void> {
-  try {
-    await pushToLoki()
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      core.error(`Action failed with error: ${error.message}`)
-    } else {
-      core.error('Action failed with an unknown error')
-    }
-  }
-  try {
-    await pushToLoki()
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      core.error(`Action failed with error: ${error.message}`)
-    } else {
-      core.error('Action failed with an unknown error')
+  for (const action of [pushToLoki, sendToSlack]) {
+    try {
+      await action()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      core.error(`Action failed with error: ${message}`)
     }
   }
 }
