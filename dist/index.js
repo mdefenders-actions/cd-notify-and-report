@@ -27,6 +27,7 @@ import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
 import require$$2$3 from 'child_process';
 import require$$6$1 from 'timers';
+import * as fs from 'fs/promises';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -31333,17 +31334,60 @@ async function sendToSlack() {
     }
 }
 
+var execExports = requireExec();
+
+async function tagRelease() {
+    const versionFile = coreExports.getInput('version-file', { required: true });
+    const dryRun = coreExports.getBooleanInput('dry-run');
+    const data = JSON.parse(await fs.readFile(versionFile, 'utf-8'));
+    if (typeof data.version !== 'string' ||
+        !/^\d+\.\d+\.\d+$/.test(data.version)) {
+        throw new Error(`Invalid or missing version in ${versionFile}: must be a valid semver string (e.g., 1.2.3)`);
+    }
+    try {
+        await execExports.exec('git', [
+            'config',
+            '--global',
+            'user.name',
+            'github-actions[bot]'
+        ]);
+        await execExports.exec('git', [
+            'config',
+            '--global',
+            'user.email',
+            'github-actions[bot]@users.noreply.github.com'
+        ]);
+        if (dryRun) {
+            coreExports.info('Dry run enabled, skipped git tag and push');
+            return;
+        }
+        await execExports.exec('git', ['tag', data.version]);
+        await execExports.exec('git', ['push', 'origin', data.version]);
+        coreExports.info(`Git repository tagged with ${data.version} version`);
+    }
+    catch (error) {
+        coreExports.error(`Git tag error: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
 /**
  * Executes the main action logic.
  */
 async function run() {
-    for (const action of [pushToLoki, sendToSlack]) {
+    const actions = [];
+    // Add tagRelease if environment is staging
+    if (coreExports.getInput('environment', { required: true }) === 'staging') {
+        actions.push(tagRelease);
+    }
+    // Add pushToLoki and sendToSlack
+    actions.push(pushToLoki, sendToSlack);
+    // Execute actions sequentially with error logging
+    for (const action of actions) {
         try {
             await action();
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : 'unknown error';
-            coreExports.error(`Action failed with error: ${message}`);
+            coreExports.error(`Action failed with error: ${error instanceof Error ? error.message : 'unknown error'}`);
         }
     }
 }

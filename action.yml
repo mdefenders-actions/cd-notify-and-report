@@ -50,6 +50,9 @@ inputs:
   github-url:
     description: 'GitHub URL for the repository'
     default: 'https://github.com'
+  version-file:
+    description: The version file
+    default: version.json
 runs:
   using: node20
   main: dist/index.js
