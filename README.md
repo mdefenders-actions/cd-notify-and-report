@@ -47,20 +47,13 @@ Add the following step to your workflow YAML:
 
 | Name               | Description                          | Example                    |
 | ------------------ | ------------------------------------ | -------------------------- |
-| `start-time`       | Workflow start time (epoch seconds)  |
-|                    |                                      | `1692700000`               |
-| `workflow-name`    | Name of the workflow                 |
-|                    |                                      | `CI Pipeline`              |
-| `workflow-success` | `1` for success, `0` for failure     |
-|                    |                                      | `1`                        |
-| `loki-push-url`    | Loki push API endpoint               |
-|                    |                                      | `https://loki.example.com` |
-| `prom-push-token`  | Basic auth token for Loki            |
-|                    |                                      | `mysecrettoken`            |
-| `app-name`         | Application name for log stream      |
-|                    |                                      | `my-app`                   |
-| `dry-run`          | If `true`, logs are not sent to Loki |
-|                    |                                      | `false`                    |
+| `start-time`       | Workflow start time (epoch seconds)  | `1692700000`               |
+| `workflow-name`    | Name of the workflow                 | `CI Pipeline`              |
+| `workflow-success` | `1` for success, `0` for failure     | `1`                        |
+| `loki-push-url`    | Loki push API endpoint               | `https://loki.example.com` |
+| `prom-push-token`  | Basic auth token for Loki            | `mysecrettoken`            |
+| `app-name`         | Application name for log stream      | `my-app`                   |
+| `dry-run`          | If `true`, logs are not sent to Loki | `false`                    |
 
 ---
 
