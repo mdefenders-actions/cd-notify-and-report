@@ -34,7 +34,7 @@ Add the following step to your workflow YAML:
 - name: Notify and Report to Loki
   uses: mdefenders-actions/cd-notify-and-report@v1
   with:
-    start-time: ${{ needs.action-based-ci.outputs.start-time }} # recorded on a first step
+    start-time: ${{ needs.action-based-ci.outputs.start-time }} 
     workflow-name: ${{ github.workflow }}
     workflow-success: ${{ job.status == 'success' && '1' || '0' }}
     loki-push-url: ${{ secrets.LOKI_PUSH_URL }}
