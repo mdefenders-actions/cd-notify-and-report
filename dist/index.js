@@ -31250,14 +31250,15 @@ async function pushToLoki() {
     const dryRun = coreExports.getBooleanInput('dry-run');
     // Convert bash logic to TypeScript
     const metricTimestamp = Date.now();
-    const duration = metricTimestamp - Number(startTime);
+    const durationMs = metricTimestamp - Number(startTime);
+    const durationSec = Math.floor(durationMs / 1000);
     const githubRunId = githubExports.context.runId;
     const githubRepo = `${githubExports.context.repo.owner}/${githubExports.context.repo.repo}`;
     // Compose logEntry as a valid JSON string
     const logEntryObj = {
         run_id: githubRunId,
         name: workflowName,
-        duration: `${duration}`,
+        duration: `${durationSec}`,
         status: undefined
     };
     // Add run status logic
