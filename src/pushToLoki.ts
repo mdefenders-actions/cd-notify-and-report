@@ -17,7 +17,8 @@ export async function pushToLoki(): Promise<void> {
 
   // Convert bash logic to TypeScript
   const metricTimestamp = Date.now()
-  const duration = metricTimestamp - Number(startTime)
+  const durationMs = metricTimestamp - Number(startTime)
+  const durationSec = Math.floor(durationMs / 1000)
 
   const githubRunId = github.context.runId
   const githubRepo = `${github.context.repo.owner}/${github.context.repo.repo}`
@@ -25,7 +26,7 @@ export async function pushToLoki(): Promise<void> {
   const logEntryObj = {
     run_id: githubRunId,
     name: workflowName,
-    duration: `${duration}`,
+    duration: `${durationSec}`,
     status: undefined as 'success' | 'failure' | undefined
   }
 
