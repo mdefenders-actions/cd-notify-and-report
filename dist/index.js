@@ -31236,10 +31236,6 @@ var githubExports = requireGithub();
 
 var libExports = requireLib();
 
-/**
- * Pushes a log entry to Loki with a configurable timeout.
- * @throws {Error} If required inputs are missing, fetch fails, or times out.
- */
 async function pushToLoki() {
     const startTime = coreExports.getInput('start-time', { required: true });
     const workflowName = coreExports.getInput('workflow-name', { required: true });
@@ -31299,35 +31295,51 @@ async function pushToLoki() {
     }
 }
 
+async function sendToSlack() {
+    const inputs = {
+        startTime: coreExports.getInput('start-time', { required: true }),
+        workflowName: coreExports.getInput('workflow-name', { required: true }),
+        workflowSuccess: coreExports.getInput('workflow-success', { required: true }),
+        appName: coreExports.getInput('app-name', { required: true }),
+        githubUrl: coreExports.getInput('github-url', { required: true }),
+        serviceURL: coreExports.getInput('service-url', { required: true }),
+        imageName: coreExports.getInput('image-name', { required: true }),
+        imageTag: coreExports.getInput('image-tag', { required: true }),
+        slackWebHook: coreExports.getInput('cicd-slack-webhook', { required: true })
+    };
+    const durationSec = Math.floor((Date.now() - Number(inputs.startTime)) / 1000);
+    const runStatus = inputs.workflowSuccess === '0' ? 'failure' : 'success';
+    const githubRepo = `${githubExports.context.repo.owner}/${githubExports.context.repo.repo}`;
+    const message = [
+        `*${inputs.workflowName}* workflow in *${inputs.appName}* has completed with status: *${runStatus.toUpperCase()}*`,
+        `*Duration:* ${durationSec} seconds`,
+        `*Details:* ${inputs.githubUrl}/${githubRepo}/actions/runs/${githubExports.context.runId}`,
+        `Service URL: ${inputs.serviceURL}`,
+        `Image: ${inputs.imageName}:${inputs.imageTag}`
+    ].join('\n');
+    const httpClient = new libExports.HttpClient();
+    const res = await httpClient.post(inputs.slackWebHook, JSON.stringify({ text: message }), { 'Content-Type': 'application/json' });
+    const body = await res.readBody();
+    if (res.message.statusCode && res.message.statusCode >= 400) {
+        throw new Error(`Failed to push to Slack: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`);
+    }
+    if (body.trim().toLowerCase() !== 'ok') {
+        throw new Error(`Unexpected Slack response: ${body}`);
+    }
+}
+
 /**
- * The main function for the action.
- *
- * @returns Resolves when the action is complete.
+ * Executes the main action logic.
  */
 async function run() {
-    try {
-        const ms = coreExports.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        coreExports.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        coreExports.debug(new Date().toTimeString());
-        await pushToLoki();
-        coreExports.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        coreExports.setOutput('time', new Date().toTimeString());
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            coreExports.error(`Action failed with error: ${error.message}`);
-            coreExports.setFailed(error.message);
+    for (const action of [pushToLoki, sendToSlack]) {
+        try {
+            await action();
         }
-        else {
-            coreExports.error('Action failed with an unknown error');
-            coreExports.setFailed('Unknown error occurred');
+        catch (error) {
+            const message = error instanceof Error ? error.message : 'unknown error';
+            coreExports.error(`Action failed with error: ${message}`);
         }
-    }
-    finally {
-        coreExports.setOutput('report', '');
     }
 }
 

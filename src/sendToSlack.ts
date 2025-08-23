@@ -41,10 +41,13 @@ export async function sendToSlack(): Promise<void> {
     { 'Content-Type': 'application/json' }
   )
 
+  const body = await res.readBody()
   if (res.message.statusCode && res.message.statusCode >= 400) {
-    const body = await res.readBody()
     throw new Error(
       `Failed to push to Slack: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`
     )
+  }
+  if (body.trim().toLowerCase() !== 'ok') {
+    throw new Error(`Unexpected Slack response: ${body}`)
   }
 }
