@@ -47,13 +47,20 @@ Add the following step to your workflow YAML:
 
 | Name               | Description                          | Example                    |
 | ------------------ | ------------------------------------ | -------------------------- |
-| `start-time`       | Workflow start time (epoch seconds)  | `1692700000`               |
-| `workflow-name`    | Name of the workflow                 | `CI Pipeline`              |
-| `workflow-success` | `1` for success, `0` for failure     | `1`                        |
-| `loki-push-url`    | Loki push API endpoint               | `https://loki.example.com` |
-| `prom-push-token`  | Basic auth token for Loki            | `mysecrettoken`            |
-| `app-name`         | Application name for log stream      | `my-app`                   |
-| `dry-run`          | If `true`, logs are not sent to Loki | `false`                    |
+| `start-time`       | Workflow start time (epoch seconds)  |
+|                    |                                      | `1692700000`               |
+| `workflow-name`    | Name of the workflow                 |
+|                    |                                      | `CI Pipeline`              |
+| `workflow-success` | `1` for success, `0` for failure     |
+|                    |                                      | `1`                        |
+| `loki-push-url`    | Loki push API endpoint               |
+|                    |                                      | `https://loki.example.com` |
+| `prom-push-token`  | Basic auth token for Loki            |
+|                    |                                      | `mysecrettoken`            |
+| `app-name`         | Application name for log stream      |
+|                    |                                      | `my-app`                   |
+| `dry-run`          | If `true`, logs are not sent to Loki |
+|                    |                                      | `false`                    |
 
 ---
 
@@ -140,11 +147,11 @@ npm run bundle
 Contributions are welcome! Please follow these steps:
 
 1. Fork the repository.
-2. Create a new branch for your feature or fix.
-3. Write tests for your changes.
-4. Run `npm run test` and ensure all tests pass.
-5. Run `npm run bundle` to update the `dist` directory.
-6. Submit a pull request with a clear description.
+1. Create a new branch for your feature or fix.
+1. Write tests for your changes.
+1. Run `npm run test` and ensure all tests pass.
+1. Run `npm run bundle` to update the `dist` directory.
+1. Submit a pull request with a clear description.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
