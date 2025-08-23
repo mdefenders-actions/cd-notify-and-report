@@ -3,56 +3,46 @@ import * as github from '@actions/github'
 import * as http from '@actions/http-client'
 
 export async function sendToSlack(): Promise<void> {
-  const startTime = core.getInput('start-time', { required: true })
-  const workflowName = core.getInput('workflow-name', { required: true })
-  const workflowSuccess = core.getInput('workflow-success', { required: true })
-  const appName = core.getInput('app-name', { required: true })
-  const dryRun = core.getBooleanInput('dry-run')
-  const githubUrl = core.getInput('github-url', { required: true })
-  const serviceURL = core.getInput('service-url', { required: true })
-  const imageName = core.getInput('image-name', { required: true })
-  const imageTag = core.getInput('image-tag', { required: true })
-  const cicdSlackWebHook = core.getInput('cicd-slack-webhook', {
-    required: true
-  })
-
-  const metricTimestamp = Date.now()
-  const durationMs = metricTimestamp - Number(startTime)
-  const durationSec = Math.floor(durationMs / 1000)
-
-  const githubRunId = github.context.runId
-  const githubRepo = `${github.context.repo.owner}/${github.context.repo.repo}`
-
-  const runStatus =
-    !startTime || workflowSuccess === '0' ? 'failure' : 'success'
-
-  let message = `*${workflowName}* workflow in *${appName}* has completed with status: *${runStatus.toUpperCase()}*\n`
-  message += `*Duration:* ${durationSec} seconds\n`
-  message += `*Details:* ${githubUrl}/${githubRepo}/actions/runs/${githubRunId}`
-  message += `Service URL: ${serviceURL}\n`
-  message += `Image: ${imageName}:${imageTag}\n`
-
-  const slackPayload = {
-    text: message
+  const inputs = {
+    startTime: core.getInput('start-time', { required: true }),
+    workflowName: core.getInput('workflow-name', { required: true }),
+    workflowSuccess: core.getInput('workflow-success', { required: true }),
+    appName: core.getInput('app-name', { required: true }),
+    // dryRun: core.getBooleanInput('dry-run'),
+    dryRun: false,
+    githubUrl: core.getInput('github-url', { required: true }),
+    serviceURL: core.getInput('service-url', { required: true }),
+    imageName: core.getInput('image-name', { required: true }),
+    imageTag: core.getInput('image-tag', { required: true }),
+    slackWebHook: core.getInput('cicd-slack-webhook', { required: true })
   }
 
-  const httpClient = new http.HttpClient()
-  if (dryRun) {
-    core.info('Dry run enabled, not sending to Loki')
+  const durationSec = Math.floor((Date.now() - Number(inputs.startTime)) / 1000)
+  const runStatus = inputs.workflowSuccess === '0' ? 'failure' : 'success'
+  const githubRepo = `${github.context.repo.owner}/${github.context.repo.repo}`
+
+  const message = [
+    `*${inputs.workflowName}* workflow in *${inputs.appName}* has completed with status: *${runStatus.toUpperCase()}*`,
+    `*Duration:* ${durationSec} seconds`,
+    `*Details:* ${inputs.githubUrl}/${githubRepo}/actions/runs/${github.context.runId}`,
+    `Service URL: ${inputs.serviceURL}`,
+    `Image: ${inputs.imageName}:${inputs.imageTag}`
+  ].join('\n')
+
+  if (inputs.dryRun) {
+    core.info('Dry run enabled, not sending to Slack')
     return
   }
 
+  const httpClient = new http.HttpClient()
   const res = await httpClient.post(
-    cicdSlackWebHook,
-    JSON.stringify(slackPayload),
-    {
-      'Content-Type': 'application/json'
-    }
+    inputs.slackWebHook,
+    JSON.stringify({ text: message }),
+    { 'Content-Type': 'application/json' }
   )
 
-  const body = await res.readBody()
-
   if (res.message.statusCode && res.message.statusCode >= 400) {
+    const body = await res.readBody()
     throw new Error(
       `Failed to push to Slack: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`
     )
