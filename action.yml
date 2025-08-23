@@ -9,9 +9,11 @@ branding:
 
 # Define your inputs here.
 inputs:
+  environment:
+    description: 'Deployment environment (e.g., production, staging)'
+    required: true
   start-time:
     description: 'Start time of the workflow in seconds since epoch'
-    required: true
     default: '0'
   workflow-name:
     description: 'Name of the workflow'
@@ -19,7 +21,6 @@ inputs:
   workflow-success:
     description:
       'Indicates if the workflow was successful (1 for success, 0 for failure)'
-    required: true
     default: '0'
   loki-push-url:
     description: 'URL for the Prometheus push gateway'
@@ -45,8 +46,10 @@ inputs:
     default: 'default-app'
   dry-run:
     description: 'Indicates if this is a dry run (true/false)'
-    required: false
     default: 'false'
+  github-url:
+    description: 'GitHub URL for the repository'
+    default: 'https://github.com'
 runs:
   using: node20
   main: dist/index.js

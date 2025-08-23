@@ -2,10 +2,6 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as http from '@actions/http-client'
 
-/**
- * Pushes a log entry to Loki with a configurable timeout.
- * @throws {Error} If required inputs are missing, fetch fails, or times out.
- */
 export async function pushToLoki(): Promise<void> {
   const startTime = core.getInput('start-time', { required: true })
   const workflowName = core.getInput('workflow-name', { required: true })
