@@ -1,34 +1,30 @@
 import * as core from '@actions/core'
 import { pushToLoki } from './pushToLoki.js'
+import { sendToSlack } from './sendToSlack.js'
+import { tagRelease } from './tagRelease.js'
 
 /**
- * The main function for the action.
- *
- * @returns Resolves when the action is complete.
+ * Executes the main action logic.
  */
 export async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
+  const actions: Array<() => Promise<void>> = []
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+  // Add tagRelease if environment is staging
+  if (core.getInput('environment', { required: true }) === 'staging') {
+    actions.push(tagRelease)
+  }
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await pushToLoki()
-    core.debug(new Date().toTimeString())
+  // Add pushToLoki and sendToSlack
+  actions.push(pushToLoki, sendToSlack)
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      core.error(`Action failed with error: ${error.message}`)
-      core.setFailed(error.message)
-    } else {
-      core.error('Action failed with an unknown error')
-      core.setFailed('Unknown error occurred')
+  // Execute actions sequentially with error logging
+  for (const action of actions) {
+    try {
+      await action()
+    } catch (error) {
+      core.error(
+        `Action failed with error: ${error instanceof Error ? error.message : 'unknown error'}`
+      )
     }
-  } finally {
-    core.setOutput('report', '')
   }
 }

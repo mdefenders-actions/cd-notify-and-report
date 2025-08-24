@@ -27,6 +27,7 @@ import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
 import require$$2$3 from 'child_process';
 import require$$6$1 from 'timers';
+import * as fs from 'fs/promises';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -31236,10 +31237,6 @@ var githubExports = requireGithub();
 
 var libExports = requireLib();
 
-/**
- * Pushes a log entry to Loki with a configurable timeout.
- * @throws {Error} If required inputs are missing, fetch fails, or times out.
- */
 async function pushToLoki() {
     const startTime = coreExports.getInput('start-time', { required: true });
     const workflowName = coreExports.getInput('workflow-name', { required: true });
@@ -31249,15 +31246,16 @@ async function pushToLoki() {
     const appName = coreExports.getInput('app-name', { required: true });
     const dryRun = coreExports.getBooleanInput('dry-run');
     // Convert bash logic to TypeScript
-    const metricTimestamp = Math.floor(Date.now() / 1000);
-    const duration = metricTimestamp - Number(startTime);
+    const metricTimestamp = Date.now();
+    const durationMs = metricTimestamp - Number(startTime);
+    const durationSec = Math.floor(durationMs / 1000);
     const githubRunId = githubExports.context.runId;
     const githubRepo = `${githubExports.context.repo.owner}/${githubExports.context.repo.repo}`;
     // Compose logEntry as a valid JSON string
     const logEntryObj = {
         run_id: githubRunId,
         name: workflowName,
-        duration: `${duration}`,
+        duration: `${durationSec}`,
         status: undefined
     };
     // Add run status logic
@@ -31298,35 +31296,100 @@ async function pushToLoki() {
     }
 }
 
-/**
- * The main function for the action.
- *
- * @returns Resolves when the action is complete.
- */
-async function run() {
+async function sendToSlack() {
+    const inputs = {
+        startTime: coreExports.getInput('start-time', { required: true }),
+        workflowName: coreExports.getInput('workflow-name', { required: true }),
+        workflowSuccess: coreExports.getInput('workflow-success', { required: true }),
+        appName: coreExports.getInput('app-name', { required: true }),
+        dryRun: coreExports.getBooleanInput('dry-run'),
+        githubUrl: coreExports.getInput('github-url', { required: true }),
+        serviceURL: coreExports.getInput('service-url', { required: true }),
+        imageName: coreExports.getInput('image-name', { required: true }),
+        imageTag: coreExports.getInput('image-tag', { required: true }),
+        slackWebHook: coreExports.getInput('cicd-slack-webhook', { required: true })
+    };
+    const durationSec = Math.floor((Date.now() - Number(inputs.startTime)) / 1000);
+    const runStatus = inputs.workflowSuccess === '0' ? 'failure' : 'success';
+    const githubRepo = `${githubExports.context.repo.owner}/${githubExports.context.repo.repo}`;
+    const message = [
+        `*${inputs.workflowName}* workflow in *${inputs.appName}* has completed with status: *${runStatus.toUpperCase()}*`,
+        `*Duration:* ${durationSec} seconds`,
+        `*Details:* ${inputs.githubUrl}/${githubRepo}/actions/runs/${githubExports.context.runId}`,
+        `Service URL: ${inputs.serviceURL}`,
+        `Image: ${inputs.imageName}:${inputs.imageTag}`
+    ].join('\n');
+    if (inputs.dryRun) {
+        coreExports.info('Dry run enabled, not sending to Slack');
+        return;
+    }
+    const httpClient = new libExports.HttpClient();
+    const res = await httpClient.post(inputs.slackWebHook, JSON.stringify({ text: message }), { 'Content-Type': 'application/json' });
+    const body = await res.readBody();
+    if (res.message.statusCode && res.message.statusCode >= 400) {
+        throw new Error(`Failed to push to Slack: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`);
+    }
+    if (body.trim().toLowerCase() !== 'ok') {
+        throw new Error(`Unexpected Slack response: ${body}`);
+    }
+}
+
+var execExports = requireExec();
+
+async function tagRelease() {
+    const versionFile = coreExports.getInput('version-file', { required: true });
+    const dryRun = coreExports.getBooleanInput('dry-run');
     try {
-        const ms = coreExports.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        coreExports.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        coreExports.debug(new Date().toTimeString());
-        await pushToLoki();
-        coreExports.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        coreExports.setOutput('time', new Date().toTimeString());
+        await execExports.exec('git', [
+            'config',
+            '--global',
+            'user.name',
+            'github-actions[bot]'
+        ]);
+        await execExports.exec('git', [
+            'config',
+            '--global',
+            'user.email',
+            'github-actions[bot]@users.noreply.github.com'
+        ]);
+        await execExports.exec('git', ['pull']);
+        const data = JSON.parse(await fs.readFile(versionFile, 'utf-8'));
+        if (typeof data.version !== 'string' ||
+            !/^\d+\.\d+\.\d+$/.test(data.version)) {
+            throw new Error(`Invalid or missing version in ${versionFile}: must be a valid semver string (e.g., 1.2.3)`);
+        }
+        if (dryRun) {
+            coreExports.info('Dry run enabled, skipped git tag and push');
+            return;
+        }
+        await execExports.exec('git', ['tag', data.version]);
+        await execExports.exec('git', ['push', 'origin', data.version]);
+        coreExports.info(`Git repository tagged with ${data.version} version`);
     }
     catch (error) {
-        if (error instanceof Error) {
-            coreExports.error(`Action failed with error: ${error.message}`);
-            coreExports.setFailed(error.message);
-        }
-        else {
-            coreExports.error('Action failed with an unknown error');
-            coreExports.setFailed('Unknown error occurred');
-        }
+        coreExports.error(`Tag release error: ${error instanceof Error ? error.message : error}`);
     }
-    finally {
-        coreExports.setOutput('report', '');
+}
+
+/**
+ * Executes the main action logic.
+ */
+async function run() {
+    const actions = [];
+    // Add tagRelease if environment is staging
+    if (coreExports.getInput('environment', { required: true }) === 'staging') {
+        actions.push(tagRelease);
+    }
+    // Add pushToLoki and sendToSlack
+    actions.push(pushToLoki, sendToSlack);
+    // Execute actions sequentially with error logging
+    for (const action of actions) {
+        try {
+            await action();
+        }
+        catch (error) {
+            coreExports.error(`Action failed with error: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
     }
 }
 

@@ -72,3 +72,4 @@ jobs:
           image-tag: 'latest'
           app-name: 'test-app'
           dry-run: 'true'
+          environment: 'test'
