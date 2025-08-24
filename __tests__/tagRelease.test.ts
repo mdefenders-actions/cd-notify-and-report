@@ -64,8 +64,9 @@ describe('tagRelease', () => {
 
   it('throws error for invalid version', async () => {
     fs.readFile.mockResolvedValue('{"version":"not-semver"}')
-    await expect(tagRelease()).rejects.toThrow(
-      'Invalid or missing version in version.json: must be a valid semver string (e.g., 1.2.3)'
+    await tagRelease()
+    expect(core.error).toHaveBeenCalledWith(
+      'Tag release error: Invalid or missing version in version.json: must be a valid semver string (e.g., 1.2.3)'
     )
   })
 
@@ -74,13 +75,14 @@ describe('tagRelease', () => {
       throw new Error('git error')
     })
     await tagRelease()
-    expect(core.error).toHaveBeenCalledWith('Git tag error: git error')
+    expect(core.error).toHaveBeenCalledWith('Tag release error: git error')
   })
 
   it('throws error if version is missing', async () => {
     fs.readFile.mockResolvedValue('{}')
-    await expect(tagRelease()).rejects.toThrow(
-      'Invalid or missing version in version.json: must be a valid semver string (e.g., 1.2.3)'
+    await tagRelease()
+    expect(core.error).toHaveBeenCalledWith(
+      'Tag release error: Invalid or missing version in version.json: must be a valid semver string (e.g., 1.2.3)'
     )
   })
 })
