@@ -31339,11 +31339,6 @@ var execExports = requireExec();
 async function tagRelease() {
     const versionFile = coreExports.getInput('version-file', { required: true });
     const dryRun = coreExports.getBooleanInput('dry-run');
-    const data = JSON.parse(await fs.readFile(versionFile, 'utf-8'));
-    if (typeof data.version !== 'string' ||
-        !/^\d+\.\d+\.\d+$/.test(data.version)) {
-        throw new Error(`Invalid or missing version in ${versionFile}: must be a valid semver string (e.g., 1.2.3)`);
-    }
     try {
         await execExports.exec('git', [
             'config',
@@ -31357,6 +31352,12 @@ async function tagRelease() {
             'user.email',
             'github-actions[bot]@users.noreply.github.com'
         ]);
+        await execExports.exec('git', ['pull']);
+        const data = JSON.parse(await fs.readFile(versionFile, 'utf-8'));
+        if (typeof data.version !== 'string' ||
+            !/^\d+\.\d+\.\d+$/.test(data.version)) {
+            throw new Error(`Invalid or missing version in ${versionFile}: must be a valid semver string (e.g., 1.2.3)`);
+        }
         if (dryRun) {
             coreExports.info('Dry run enabled, skipped git tag and push');
             return;
@@ -31366,7 +31367,7 @@ async function tagRelease() {
         coreExports.info(`Git repository tagged with ${data.version} version`);
     }
     catch (error) {
-        coreExports.error(`Git tag error: ${error instanceof Error ? error.message : error}`);
+        coreExports.error(`Tag release error: ${error instanceof Error ? error.message : error}`);
     }
 }
 
