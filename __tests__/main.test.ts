@@ -66,7 +66,8 @@ describe('main.ts', () => {
   it('calls tagRelease, pushToLoki, and sendToSlack if environment is staging', async () => {
     core.getInput.mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        environment: 'staging'
+        environment: 'staging',
+        'workflow-success': '1'
       }
       return inputs[name] || ''
     })

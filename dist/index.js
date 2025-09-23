@@ -31376,8 +31376,9 @@ async function tagRelease() {
  */
 async function run() {
     const actions = [];
-    // Add tagRelease if environment is staging
-    if (coreExports.getInput('environment', { required: true }) === 'staging') {
+    // Add tagRelease if environment is staging  and workflow succeeded
+    if (coreExports.getInput('environment', { required: true }) === 'staging' &&
+        coreExports.getInput('workflow-success', { required: true }) === '1') {
         actions.push(tagRelease);
     }
     // Add pushToLoki and sendToSlack

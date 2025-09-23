@@ -9,8 +9,11 @@ import { tagRelease } from './tagRelease.js'
 export async function run(): Promise<void> {
   const actions: Array<() => Promise<void>> = []
 
-  // Add tagRelease if environment is staging
-  if (core.getInput('environment', { required: true }) === 'staging') {
+  // Add tagRelease if environment is staging  and workflow succeeded
+  if (
+    core.getInput('environment', { required: true }) === 'staging' &&
+    core.getInput('workflow-success', { required: true }) === '1'
+  ) {
     actions.push(tagRelease)
   }
 
